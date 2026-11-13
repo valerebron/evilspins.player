@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [vue()],
+  base: '/evilspins.player/',
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
