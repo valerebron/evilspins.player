@@ -1,5 +1,4 @@
 /** @type {import('tailwindcss').Config} */
-const daisyThemes = require('daisyui/theme/object.js')
 
 export default {
   content: [
@@ -32,7 +31,6 @@ export default {
     }
   },
   plugins: [
-    require("daisyui"),
     function ({ addUtilities }) {
       addUtilities({
         '.screen-centered': {
@@ -66,14 +64,4 @@ export default {
       })
     }
   ],
-  daisyui: {
-    themes: [
-      {
-        light: {
-          ...daisyThemes.light,
-          primary: '#fdec50ff',
-        },
-      },
-    ],
-  },
 }
