@@ -49,9 +49,6 @@ const emit = defineEmits<{
 const isPlatineMounted = ref(false)
 const isOpen = ref(false)
 const isPlatineFading = ref(false)
-
-let previousUrl: string | null = null
-
 const isMounted = ref(false)
 let mountAnimationTimeout: ReturnType<typeof setTimeout> | null = null
 
@@ -152,8 +149,6 @@ const clickOnCard = async () => {
     return
   }
 
-  previousUrl = window.location.pathname
-
   if (!isPlatineMounted.value) {
     isPlatineMounted.value = true
     isLoading.value = true
@@ -194,7 +189,6 @@ const onTrackLoaded = async () => {
 
   const artist = props.card.artist ?? (props.card as any).name ?? 'Unknown Artist'
   document.title = `${artist} - ${props.card.title}`
-  window.history.pushState({}, '', `/card/${props.card.slug}`)
   isLoading.value = false
 }
 
@@ -211,11 +205,6 @@ const closePlatine = () => {
   setTimeout(() => {
     isPlatineFading.value = false
     emit('close')
-
-    if (previousUrl) {
-      window.history.pushState({}, '', previousUrl)
-      previousUrl = null
-    }
   }, CARD_TRANSITION_DURATION)
 }
 
