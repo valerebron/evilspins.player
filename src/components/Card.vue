@@ -1,9 +1,8 @@
 <template>
   <section class="card group text-center"
-    :class="{ 'open': isOpen, 'card-enter': isMounted, 'show-play-button': showPlayButton, 'is-disabled': isDisabled }">
+    :class="{ 'open': isOpen, 'card-enter': isMounted, 'is-disabled': isDisabled }">
     <CardElement :card="props.card!" :buttons="props.buttons" :is-face-up="isFaceUp"
       :is-loading="isLoading" :back-color="props.backColor" :is-disabled="isDisabled" :is-playing="props.isPlaying"
-      :show-play-button-on-face-down="props.showPlayButtonOnFaceDown"
       @click="clickOnCard" @button-click="onButtonClick" />
     <Platine v-if="isPlatineMounted" ref="platineRef" :card="card" :active="isOpen"
       :class="{ 'fading-out': isPlatineFading }" @loaded="onTrackLoaded" @finishPlaying="onFinishPlaying"
@@ -16,7 +15,6 @@ import type { Card } from '@/types/types'
 import { timeout } from '@/utils/timeout'
 import CardElement from './CardElement.vue'
 import Platine from './Platine.vue'
-import { useIsTouchInterface } from '@/composables/useIsTouchInterface'
 import { useAutoplayGate } from '@/composables/useAutoplayGate'
 import { useScreenWakeLock } from '@/composables/useScreenWakeLock'
 import { onMounted, onBeforeUnmount, onUnmounted, ref, computed, watch } from 'vue'
@@ -30,12 +28,9 @@ const props = withDefaults(defineProps<{
   buttons?: string[],
   clickBehavior?: 'flip-only' | 'self-play' | 'external-player',
   autoplay?: boolean,
-  showPlayButton?: boolean,
-  showPlayButtonOnFaceDown?: boolean,
   disabled?: boolean,
 }>(), {
-  buttons: () => ['play'],
-  showPlayButtonOnFaceDown: true
+  buttons: () => ['play']
 })
 
 const emit = defineEmits<{
@@ -89,17 +84,6 @@ const isFaceUp = computed({
 })
 
 const isLoading = ref(false)
-const isTouch = useIsTouchInterface()
-
-const showPlayButton = computed(() => {
-  if (isTouch.value) {
-    return isTouch.value
-  }
-  else if (props.showPlayButton !== undefined) {
-    return props.showPlayButton
-  }
-})
-
 const platineRef = useTemplateRef<InstanceType<typeof Platine>>('platineRef')
 const { canAutoplayNow, requestAutoplayUnlock } = useAutoplayGate()
 const { requestWakeLock, releaseWakeLock } = useScreenWakeLock()

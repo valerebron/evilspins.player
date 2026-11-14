@@ -1,6 +1,6 @@
 <template>
-  <button :tabindex="props.tabindex ?? (props.interactive ? 0 : -1)" class="play-button"
-    :class="{ 'is-loading': isLoading, interactive: props.interactive }" :disabled="isLoading" type="button">
+  <button :tabindex="props.tabindex" class="play-button"
+    :class="{ 'is-loading': isLoading }" :disabled="isLoading" type="button">
     <Loader v-if="props.isLoading" />
     <template v-else>
       <PlayPauseIcon :isPlaying class="text-esyellow" />
@@ -15,13 +15,11 @@ import Loader from './Loader.vue'
 const props = withDefaults(defineProps<{
   isLoading?: boolean;
   isPlaying?: boolean;
-  interactive?: boolean;
   /** Surcharge le tabindex calculé (permet de garder le bouton cliquable sans l'inclure dans l'ordre de tabulation) */
-  tabindex?: number | null;
+  tabindex?: number | undefined;
 }>(), {
   isLoading: false,
-  isPlaying: false,
-  interactive: false
+  isPlaying: false
 })
 </script>
 
@@ -37,10 +35,6 @@ const props = withDefaults(defineProps<{
   align-items: center;
   justify-content: center;
 
-  &.interactive {
-    pointer-events: auto;
-  }
-
   &::after {
     @apply bg-esyellow;
     width: 30%;
@@ -53,10 +47,5 @@ const props = withDefaults(defineProps<{
     @apply fill-esyellow opacity-70;
     padding: 22%;
   }
-}
-
-.is-loading,
-.play-button-changed {
-  opacity: 1 !important;
 }
 </style>

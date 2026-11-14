@@ -1,5 +1,5 @@
 <template>
-  <div class="screen-centered p-4 dark:bg-black">
+  <div class="screen-centered p-4">
     <Card :card="card" class="w-[40vmin]" click-behavior="self-play" />
   </div>
 </template>
