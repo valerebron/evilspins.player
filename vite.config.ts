@@ -2,9 +2,9 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
-  base: '/evilspins.player/',
+  base: mode === 'production' ? '/evilspins.player/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
@@ -21,4 +21,4 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-})
+}))
