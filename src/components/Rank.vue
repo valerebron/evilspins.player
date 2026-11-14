@@ -1,8 +1,7 @@
 <template>
   <div :class="{
     'suit-dark': !isRedCard,
-    'suit-red': isRedCard,
-    'revert': isDarkBackground
+    'suit-red': isRedCard
   }" class="rank flex items-center justify-center size-[20%] absolute top-[8%] left-[12%] text-[100%]">
     <div class="suit absolute">
       <component :is="svgComponent" :class="{ 'suit-red': isRedCard, 'suit-black': !isRedCard }" />
@@ -20,7 +19,6 @@ import HeartSVG from '@/components/svg/HeartSVG.vue'
 import DiamondSVG from '@/components/svg/DiamondSVG.vue'
 import ClubSVG from '@/components/svg/ClubSVG.vue'
 import SpadeSVG from '@/components/svg/SpadeSVG.vue'
-import { decode } from 'blurhash'
 
 const props = defineProps<{ card?: Card }>()
 
@@ -39,22 +37,6 @@ const svgComponent = computed(() => {
 
 const number = computed(() => {
   return props.card?.rank
-})
-
-const isDarkBackground = computed(() => {
-  const blurhash = props.card?.blurhash
-
-  if (!blurhash) return false
-
-  const pixels = decode(blurhash, 1, 1)
-
-  const r = pixels[0]
-  const g = pixels[1]
-  const b = pixels[2]
-
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-  return luminance < 100
 })
 </script>
 

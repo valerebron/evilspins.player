@@ -1,6 +1,6 @@
 <template>
   <section class="card group text-center"
-    :class="{ 'open': isOpen, 'card-enter': isMounted, 'is-disabled': isDisabled }">
+    :class="{ 'open': isOpen, 'is-disabled': isDisabled }">
     <CardElement :card="props.card!" :buttons="props.buttons" :is-face-up="isFaceUp"
       :is-loading="isLoading" :back-color="props.backColor" :is-disabled="isDisabled" :is-playing="props.isPlaying"
       @click="clickOnCard" @button-click="onButtonClick" />
@@ -15,9 +15,7 @@ import type { Card } from '@/types/types'
 import { timeout } from '@/utils/timeout'
 import CardElement from './CardElement.vue'
 import Platine from './Platine.vue'
-import { useAutoplayGate } from '@/composables/useAutoplayGate'
-import { useScreenWakeLock } from '@/composables/useScreenWakeLock'
-import { onMounted, onBeforeUnmount, onUnmounted, ref, computed, watch } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useTemplateRef } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -27,7 +25,6 @@ const props = withDefaults(defineProps<{
   isPlaying?: boolean,
   buttons?: string[],
   clickBehavior?: 'flip-only' | 'self-play' | 'external-player',
-  autoplay?: boolean,
   disabled?: boolean,
 }>(), {
   buttons: () => ['play']
@@ -44,25 +41,6 @@ const emit = defineEmits<{
 const isPlatineMounted = ref(false)
 const isOpen = ref(false)
 const isPlatineFading = ref(false)
-const isMounted = ref(false)
-let mountAnimationTimeout: ReturnType<typeof setTimeout> | null = null
-
-const startMountAnimation = () => {
-  if (mountAnimationTimeout) {
-    clearTimeout(mountAnimationTimeout)
-  }
-
-  isMounted.value = true
-
-  mountAnimationTimeout = setTimeout(() => {
-    isMounted.value = false
-    mountAnimationTimeout = null
-  }, 550)
-}
-
-onMounted(async () => {
-  startMountAnimation()
-})
 
 const localIsFaceUp = ref(props.isFaceUp ?? false)
 
@@ -85,12 +63,9 @@ const isFaceUp = computed({
 
 const isLoading = ref(false)
 const platineRef = useTemplateRef<InstanceType<typeof Platine>>('platineRef')
-const { canAutoplayNow, requestAutoplayUnlock } = useAutoplayGate()
-const { requestWakeLock, releaseWakeLock } = useScreenWakeLock()
 
 const CARD_TRANSITION_DURATION = 1050
 
-const cardId = computed(() => props.card.slug)
 const clickBehavior = computed(() => props.clickBehavior ?? 'flip-only')
 const isSelfPlayMode = computed(() => clickBehavior.value === 'self-play')
 const isDisabled = computed(() => Boolean(props.disabled))
@@ -128,11 +103,6 @@ const clickOnCard = async () => {
     return
   }
 
-  const canStart = await requestAutoplayUnlock()
-  if (!canStart) {
-    return
-  }
-
   if (!isPlatineMounted.value) {
     isPlatineMounted.value = true
     isLoading.value = true
@@ -146,7 +116,6 @@ const clickOnCard = async () => {
       }
 
       revealCardIfNeeded()
-      announcePlaybackStarted()
       isOpen.value = true
       emit('open')
       isLoading.value = false
@@ -167,7 +136,6 @@ const onTrackLoaded = async () => {
     return
   }
 
-  announcePlaybackStarted()
   isOpen.value = true
   emit('open')
 
@@ -192,118 +160,7 @@ const closePlatine = () => {
   }, CARD_TRANSITION_DURATION)
 }
 
-let spaceHandler: ((e: KeyboardEvent) => void) | null = null
-
-const setupSpaceListener = () => {
-  cleanupSpaceListener()
-  spaceHandler = (e: KeyboardEvent) => {
-    if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
-      e.preventDefault()
-      platineRef.value?.togglePlay?.()
-    }
-  }
-  window.addEventListener('keydown', spaceHandler)
-}
-
-const cleanupSpaceListener = () => {
-  if (spaceHandler) {
-    window.removeEventListener('keydown', spaceHandler)
-    spaceHandler = null
-  }
-}
-
-const announcePlaybackStarted = () => {
-  void requestWakeLock()
-}
-
-const pauseOnPageHide = () => {
-  platineRef.value?.pause?.()
-}
-
-const pauseOnWindowBlur = () => {
-  if (document.hidden) {
-    platineRef.value?.pause?.()
-  }
-}
-
-watch(isOpen, (open) => {
-  if (!isSelfPlayMode.value) {
-    cleanupSpaceListener()
-    return
-  }
-
-  if (open) {
-    setupSpaceListener()
-  } else {
-    cleanupSpaceListener()
-  }
-}, { immediate: true })
-
-watch(() => props.autoplay, async (autoplay) => {
-  if (!isSelfPlayMode.value || !autoplay || isPlatineMounted.value) {
-    return
-  }
-
-  const canStart = await canAutoplayNow()
-  if (!canStart) {
-    return
-  }
-
-  isPlatineMounted.value = true
-  isLoading.value = true
-}, { immediate: true })
-
-let escapeHandler: ((e: KeyboardEvent) => void) | null = null
-
-const setupEscapeListener = () => {
-  if (escapeHandler) return
-  escapeHandler = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && isOpen.value) {
-      closePlatine()
-    }
-  }
-  window.addEventListener('keydown', escapeHandler)
-}
-
-const cleanupEscapeListener = () => {
-  if (escapeHandler) {
-    window.removeEventListener('keydown', escapeHandler)
-    escapeHandler = null
-  }
-}
-
-onMounted(() => {
-  if (!isSelfPlayMode.value) {
-    return
-  }
-
-  document.addEventListener('visibilitychange', pauseOnPageHide)
-  window.addEventListener('pagehide', pauseOnPageHide)
-  window.addEventListener('blur', pauseOnWindowBlur)
-
-  setupEscapeListener()
-})
-
-onBeforeUnmount(() => {
-  if (!isSelfPlayMode.value) {
-    return
-  }
-
-  document.removeEventListener('visibilitychange', pauseOnPageHide)
-  window.removeEventListener('pagehide', pauseOnPageHide)
-  window.removeEventListener('blur', pauseOnWindowBlur)
-
-  cleanupEscapeListener()
-})
-
 onUnmounted(() => {
-  if (mountAnimationTimeout) {
-    clearTimeout(mountAnimationTimeout)
-    mountAnimationTimeout = null
-  }
-
-  cleanupSpaceListener()
-  void releaseWakeLock()
 })
 </script>
 
