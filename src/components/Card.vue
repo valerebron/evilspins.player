@@ -1,7 +1,8 @@
 <template>
   <section class="card group text-center"
-    :class="{ 'open': isOpen, 'card-enter': isMounted, 'is-disabled': isDisabled }">
-    <CardElement :card="props.card!" :buttons="props.buttons" :is-face-up="isFaceUp"
+    :class="{ 'open': isOpen, 'card-enter': isMounted, 'is-disabled': isDisabled }"
+    :style="cardStyle">
+    <CardElement :card="card" :buttons="props.buttons" :is-face-up="isFaceUp"
       :is-loading="isLoading" :back-color="props.backColor" :is-disabled="isDisabled" :is-playing="props.isPlaying"
       @click="clickOnCard" @button-click="onButtonClick" />
     <Platine v-if="isPlatineMounted" ref="platineRef" :card="card" :active="isOpen"
@@ -11,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Card } from '@/types/types'
+import type { CardData } from '@/types/types'
 import { timeout } from '@/utils/timeout'
 import CardElement from './CardElement.vue'
 import Platine from './Platine.vue'
@@ -21,24 +22,56 @@ import { onMounted, onBeforeUnmount, onUnmounted, ref, computed, watch } from 'v
 import { useTemplateRef } from 'vue'
 
 const props = withDefaults(defineProps<{
-  card: Card,
-  backColor?: string | null,
-  isFaceUp?: boolean,
-  isPlaying?: boolean,
-  buttons?: string[],
-  clickBehavior?: 'flip-only' | 'self-play' | 'external-player',
-  autoplay?: boolean,
-  disabled?: boolean,
+  /** Card data */
+  card: CardData;
+  /** Custom back color */
+  backColor?: string | null;
+  /** Whether the card is face up */
+  isFaceUp?: boolean;
+  /** Playing state */
+  isPlaying?: boolean;
+  /** Available buttons */
+  buttons?: string[];
+  /** Click behavior: 'flip-only' | 'self-play' | 'external-player' */
+  clickBehavior?: 'flip-only' | 'self-play' | 'external-player';
+  /** Auto-play when mounted (self-play mode only) */
+  autoplay?: boolean;
+  /** Disabled state */
+  disabled?: boolean;
+  /** Custom transition duration in ms */
+  transitionDuration?: number;
+  /** Keyboard shortcut for play/pause */
+  playPauseKey?: string;
+  /** Keyboard shortcut for close */
+  closeKey?: string;
+  /** Card size configuration */
+  size?: {
+    width: string;
+    aspectRatio: string;
+    maxWidth?: string;
+    maxHeight?: string;
+  };
+  /** Open card size configuration */
+  openSize?: {
+    width: string;
+    aspectRatio: string;
+  };
 }>(), {
-  buttons: () => ['play']
+  buttons: () => ['play'],
+  clickBehavior: 'flip-only',
+  transitionDuration: 1050,
+  playPauseKey: 'Space',
+  closeKey: 'Escape',
+  size: () => ({ width: '40vmin', aspectRatio: '7/10', maxWidth: '100vmin', maxHeight: '100vmin' }),
+  openSize: () => ({ width: '80vmin', aspectRatio: '10/10' })
 })
 
 const emit = defineEmits<{
   open: []
   close: []
-  'play-request': [card: Card]
-  flip: [card: Card]
-  'button-click': [payload: { button: string; card: Card }]
+  'play-request': [card: CardData]
+  flip: [card: CardData]
+  'button-click': [payload: { button: string; card: CardData }]
 }>()
 
 const isPlatineMounted = ref(false)
@@ -88,10 +121,27 @@ const platineRef = useTemplateRef<InstanceType<typeof Platine>>('platineRef')
 const { canAutoplayNow, requestAutoplayUnlock } = useAutoplayGate()
 const { requestWakeLock, releaseWakeLock } = useScreenWakeLock()
 
-const CARD_TRANSITION_DURATION = 1050
+const CARD_TRANSITION_DURATION = computed(() => props.transitionDuration)
 
-const cardId = computed(() => props.card.slug)
 const clickBehavior = computed(() => props.clickBehavior ?? 'flip-only')
+
+// Computed styles for dynamic sizing
+const cardStyle = computed(() => {
+  const base = {
+    width: props.size?.width || '40vmin',
+    aspectRatio: props.size?.aspectRatio || '7/10',
+    maxWidth: props.size?.maxWidth || '100vmin',
+    maxHeight: props.size?.maxHeight || '100vmin',
+    transition: `all ${CARD_TRANSITION_DURATION.value}ms cubic-bezier(0.4, 0, 0.2, 1)`
+  } as Record<string, string>
+
+  if (isOpen.value) {
+    base.width = props.openSize?.width || '80vmin'
+    base.aspectRatio = props.openSize?.aspectRatio || '10/10'
+  }
+
+  return base
+})
 const isSelfPlayMode = computed(() => clickBehavior.value === 'self-play')
 const isDisabled = computed(() => Boolean(props.disabled))
 
@@ -104,7 +154,7 @@ const revealCardIfNeeded = () => {
   emit('flip', props.card)
 }
 
-const onButtonClick = (payload: { button: string; card: Card }) => {
+const onButtonClick = (payload: { button: string; card: CardData }) => {
   if (payload.button === 'play') {
     void clickOnCard()
   }
@@ -150,7 +200,7 @@ const clickOnCard = async () => {
       isOpen.value = true
       emit('open')
       isLoading.value = false
-    }, CARD_TRANSITION_DURATION)
+    }, CARD_TRANSITION_DURATION.value)
   }
 }
 
@@ -158,7 +208,7 @@ const onTrackLoaded = async () => {
   revealCardIfNeeded()
 
   await timeout(350)
-  await timeout(CARD_TRANSITION_DURATION)
+  await timeout(CARD_TRANSITION_DURATION.value)
 
   const started = await platineRef.value?.play?.(0)
   if (!started) {
@@ -171,8 +221,6 @@ const onTrackLoaded = async () => {
   isOpen.value = true
   emit('open')
 
-  const artist = props.card.artist ?? (props.card as any).name ?? 'Unknown Artist'
-  document.title = `${artist} - ${props.card.title}`
   isLoading.value = false
 }
 
@@ -189,15 +237,16 @@ const closePlatine = () => {
   setTimeout(() => {
     isPlatineFading.value = false
     emit('close')
-  }, CARD_TRANSITION_DURATION)
+  }, CARD_TRANSITION_DURATION.value)
 }
 
 let spaceHandler: ((e: KeyboardEvent) => void) | null = null
 
 const setupSpaceListener = () => {
   cleanupSpaceListener()
+  const key = props.playPauseKey
   spaceHandler = (e: KeyboardEvent) => {
-    if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
+    if (e.code === key || e.key === key || e.keyCode === (key === 'Space' ? 32 : undefined)) {
       e.preventDefault()
       platineRef.value?.togglePlay?.()
     }
@@ -257,8 +306,9 @@ let escapeHandler: ((e: KeyboardEvent) => void) | null = null
 
 const setupEscapeListener = () => {
   if (escapeHandler) return
+  const key = props.closeKey
   escapeHandler = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && isOpen.value) {
+    if (e.key === key && isOpen.value) {
       closePlatine()
     }
   }
@@ -305,6 +355,14 @@ onUnmounted(() => {
   cleanupSpaceListener()
   void releaseWakeLock()
 })
+
+// Expose methods for external control
+defineExpose({
+  play: () => clickOnCard(),
+  close: closePlatine,
+  isOpen: computed(() => isOpen.value),
+  isLoading: computed(() => isLoading.value)
+})
 </script>
 
 <style scoped lang="scss">
@@ -319,13 +377,10 @@ $card-transition-speed: 1.2s;
 $card-mount-speed: 0.2s;
 
 .card {
-  width: 40vmin;
-  aspect-ratio: 7/10;
+  // Use inline styles for dynamic sizing (set via :style binding)
   position: relative;
   rotate: var(--card-rotation, 0deg);
-  max-height: 100vmin;
-  max-width: 100vmin;
-  transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--card-transition-duration, #{$card-transition-speed}) cubic-bezier(0.4, 0, 0.2, 1);
 
   &:focus-within {
     z-index: 50;
@@ -367,7 +422,7 @@ $card-mount-speed: 0.2s;
   .platine {
     height: 100%;
     width: 100%;
-    transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--card-transition-duration, #{$card-transition-speed}) cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   :deep(.card-element) {
@@ -379,7 +434,7 @@ $card-mount-speed: 0.2s;
 
     .face-up,
     .cover {
-      transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all var(--card-transition-duration, #{$card-transition-speed}) cubic-bezier(0.4, 0, 0.2, 1);
 
       &:active {
         .play-button {
@@ -390,10 +445,8 @@ $card-mount-speed: 0.2s;
   }
 
   &.open {
-    width: 80vmin;
-    aspect-ratio: 10/10;
     rotate: 0deg;
-    transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--card-transition-duration, #{$card-transition-speed}) cubic-bezier(0.4, 0, 0.2, 1);
 
     .card-element {
       pointer-events: none;
@@ -426,7 +479,7 @@ $card-mount-speed: 0.2s;
 // Fade out de la platine (quand on ferme la carte)
 .platine.fading-out {
   opacity: 0;
-  transition: opacity $card-transition-speed ease-out;
+  transition: opacity var(--card-transition-duration, #{$card-transition-speed}) ease-out;
   pointer-events: none;
 }
 </style>

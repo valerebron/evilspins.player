@@ -9,37 +9,45 @@
       <main
         class="face-up z-10 p-[6%] hover:shadow-xl hover:scale-110 transition-all shadow-lg flex flex-col overflow-hidden border-2">
 
-        <Rank :card="props.card" />
+        <slot name="rank">
+          <Rank :card="card" v-if="showRank" />
+        </slot>
 
         <!-- Cover -->
         <figure class="cover relative">
-          <PlayButton :is-loading="isLoading" :is-playing="props.isPlaying" interactive :tabindex="-1"
-              aria-label="play" class="z-10" />
-          <img v-if="isInlineImageUrl" :src="props.card.url_image" alt="card cover"
-            class="cover-image relative z-0 w-full h-full object-cover object-center" draggable="false" />
-          <img v-else :src="props.card.url_image" alt="card cover" loading="lazy"
-            class="cover-image relative z-0 w-full h-full object-cover object-center"
-            draggable="false" />
+          <slot name="cover" :isLoading="isLoading" :isPlaying="isPlaying">
+            <PlayButton :is-loading="isLoading" :is-playing="isPlaying" interactive :tabindex="-1"
+                aria-label="play" class="z-10" />
+            <img v-if="isInlineImageUrl" :src="card.imageUrl" alt="card cover"
+              class="cover-image relative z-0 w-full h-full object-cover object-center" draggable="false" />
+            <img v-else :src="card.imageUrl" alt="card cover" loading="lazy"
+              class="cover-image relative z-0 w-full h-full object-cover object-center"
+              draggable="false" />
+          </slot>
         </figure>
 
         <!-- Body -->
-        <div
-          class="card-body p-[6%] text-center bg-white rounded-b-xl opacity-0 -mt-16 hover:opacity-100 hover:-mt-0 transition-all duration-300">
-          <h2 class="select-text text-sm text-neutral-500 first-letter:uppercase truncate">
-            {{ props.card.title || 'title' }}
-          </h2>
-          <p class="select-text text-base text-neutral-800 font-bold capitalize truncate">
-            {{ props.card.artist || 'artist' }}
-          </p>
-        </div>
+        <slot name="card-body" :card="card">
+          <div
+            class="card-body p-[6%] text-center bg-white rounded-b-xl opacity-0 -mt-16 hover:opacity-100 hover:-mt-0 transition-all duration-300">
+            <h2 class="select-text text-sm text-neutral-500 first-letter:uppercase truncate">
+              {{ card.title || '' }}
+            </h2>
+            <p class="select-text text-base text-neutral-800 font-bold capitalize truncate">
+              {{ card.artist || '' }}
+            </p>
+          </div>
+        </slot>
       </main>
 
       <!-- Face-Down -->
       <footer
         class="face-down z-10 p-[6%] bg-opacity-10 bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden select-none">
         <figure class="cover">
-          <PlayButton :is-loading="isLoading" :is-playing="props.isPlaying" />
-          <img :src="faceDownImageSrc" class="cover-image" :style="{ backgroundColor: cardColor }" draggable="false" />
+          <slot name="face-down" :isLoading="isLoading" :isPlaying="isPlaying" :backColor="resolvedBackColor" :backImage="resolvedBackImage">
+            <PlayButton :is-loading="isLoading" :is-playing="isPlaying" />
+            <img :src="resolvedBackImage" class="cover-image" :style="{ backgroundColor: resolvedBackColor }" draggable="false" />
+          </slot>
         </figure>
       </footer>
     </div>
@@ -47,25 +55,52 @@
 </template>
 
 <script setup lang="ts">
-import type { Card } from '@/types/types'
+import type { CardData, Suit, Rank as RankType, YearColorMap } from '@/types/types'
 import { computed } from 'vue'
-import { getYearColor } from '@/utils/colors'
+import { getYearColor, defaultYearColorMap } from '@/utils/colors'
 import Rank from './Rank.vue'
 import PlayButton from './UI/PlayButton.vue'
 
-const emit = defineEmits(['click', 'button-click'])
+// Import SVG assets for library distribution
+import FaceDownSvg from '@/assets/face-down.svg?url'
+import FaceDownTarotSvg from '@/assets/face-down-tarot.svg?url'
+
+const emit = defineEmits<{
+  click: [event: MouseEvent | KeyboardEvent]
+  'button-click': [payload: { button: string; card: CardData }]
+}>()
 
 const props = withDefaults(defineProps<{
-  card: Card;
+  /** Card data - uses the new generic CardData interface */
+  card: CardData;
+  /** Custom back color, overrides year-based color */
   backColor?: string | null;
+  /** Whether the card is face up */
   isFaceUp?: boolean;
+  /** Loading state for play button */
   isLoading?: boolean;
+  /** Disabled state */
   isDisabled?: boolean;
+  /** Playing state for play button */
   isPlaying?: boolean;
+  /** Available buttons (for future extension) */
   buttons?: string[];
+  /** ARIA role */
   role?: string;
+  /** Tab index for accessibility */
   tabindex?: string | number;
+  /** Use tarot-style back image */
   useTarotBack?: boolean;
+  /** Custom back image URL (overrides useTarotBack) */
+  backImage?: string;
+  /** Custom function to resolve back color from year */
+  backColorResolver?: (year: number | undefined) => string;
+  /** Custom year-to-color map */
+  yearColorMap?: YearColorMap;
+  /** Show rank indicator (suit + rank) */
+  showRank?: boolean;
+  /** Image loading strategy */
+  imageLoading?: 'lazy' | 'eager' | 'inline';
 }>(), {
   backColor: null,
   isFaceUp: false,
@@ -74,13 +109,42 @@ const props = withDefaults(defineProps<{
   buttons: () => ['play'],
   role: 'button',
   tabindex: '0',
-  useTarotBack: false
+  useTarotBack: false,
+  showRank: true,
+  imageLoading: 'lazy'
 })
 
-const cardColor = computed(() => props.backColor || getYearColor(props.card.year || 0))
-const faceDownImageSrc = computed(() => props.useTarotBack ? '/face-down-tarot.svg' : '/face-down.svg')
+// Convert legacy Card to CardData if needed
+const card = computed<CardData>(() => {
+  const c = props.card as any
+  // Support both new CardData and legacy Card formats
+  return {
+    audioUrl: c.audioUrl || c.url_audio,
+    imageUrl: c.imageUrl || c.url_image,
+    blurhash: c.blurhash,
+    title: c.title,
+    artist: c.artist,
+    year: c.year,
+    startTime: c.startTime || c.start,
+    suit: c.suit,
+    rank: c.rank,
+    ...c // Pass through any additional properties
+  }
+})
+
+const resolvedBackColor = computed(() => {
+  if (props.backColor) return props.backColor
+  if (props.backColorResolver) return props.backColorResolver(card.value.year)
+  return getYearColor(card.value.year || 0, props.yearColorMap || defaultYearColorMap)
+})
+
+const resolvedBackImage = computed(() => {
+  if (props.backImage) return props.backImage
+  return props.useTarotBack ? FaceDownTarotSvg : FaceDownSvg
+})
+
 const isInlineImageUrl = computed(() => {
-  const image = props.card.url_image || ''
+  const image = card.value.imageUrl || ''
   return image.startsWith('blob:') || image.startsWith('data:')
 })
 
@@ -101,6 +165,11 @@ const onCardEnter = (event: KeyboardEvent) => {
 
   emit('click', event)
 }
+
+// Expose slot data types for consumers
+defineExpose({
+  // Slot prop types are inferred from template
+})
 </script>
 
 <style lang="scss">

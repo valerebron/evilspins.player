@@ -1,5 +1,6 @@
 <template>
-  <button class="play-pause-btn" :class="{ isPlaying }" :aria-label="isPlaying ? 'Pause' : 'Play'" tabindex="-1">
+  <button class="play-pause-btn" :class="{ isPlaying }" :aria-label="isPlaying ? 'Pause' : 'Play'" tabindex="-1"
+    :style="buttonStyle">
     <svg class="icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <!-- Pause bars -->
       <g class="pause-icon">
@@ -14,9 +15,33 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-  isPlaying: boolean
-}>()
+import { computed } from 'vue'
+
+const props = withDefaults(defineProps<{
+  isPlaying: boolean;
+  /** Animation duration in ms */
+  duration?: number;
+  /** Animation easing function */
+  ease?: string;
+  /** Icon size (CSS value) */
+  size?: string;
+  /** Icon color */
+  color?: string;
+}>(), {
+  duration: 220,
+  ease: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  size: '100%',
+  color: 'currentColor'
+})
+
+const buttonStyle = computed(() => ({
+  '--duration': `${props.duration}ms`,
+  '--ease': props.ease,
+  '--size': props.size,
+  '--color': props.color,
+  width: 'var(--size)',
+  height: 'var(--size)'
+}))
 </script>
 
 <style scoped>

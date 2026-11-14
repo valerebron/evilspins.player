@@ -1,30 +1,32 @@
 <template>
   <div class="platine" :class="{ 'loading': isLoadingTrack, 'mounted': isMounted, 'playing': isPlaying }">
     <div v-if="showDebugOverlay" class="debug">
-      <button @click="Reverse">
-        <b v-if="isReversed">reversed</b>
-        <b v-else>normal</b>
-      </button>
-      <button @click="Rewind">
-        Rewind
-      </button>
-      <button @click="NextFourSec">
-        Next Five
-      </button>
-      <button @click="PrevFourSec">
-        Prev Five
-      </button>
-      <div class="debug__track">
-        <div class="debug__bar">
-          <div class="debug__bar-fill debug__bar-fill--disc" :style="{ width: `${debugDiscProgress}%` }" />
-          <div class="debug__bar-fill debug__bar-fill--audio" :style="{ width: `${debugAudioProgress}%` }" />
+      <slot name="debug-overlay" :discProgress="debugDiscProgress" :audioProgress="debugAudioProgress" :speed="currentSpeed" :isReversed="isReversed">
+        <button @click="Reverse">
+          <b v-if="isReversed">reversed</b>
+          <b v-else>normal</b>
+        </button>
+        <button @click="Rewind">
+          Rewind
+        </button>
+        <button @click="NextFourSec">
+          Next Five
+        </button>
+        <button @click="PrevFourSec">
+          Prev Five
+        </button>
+        <div class="debug__track">
+          <div class="debug__bar">
+            <div class="debug__bar-fill debug__bar-fill--disc" :style="{ width: `${debugDiscProgress}%` }"></div>
+            <div class="debug__bar-fill debug__bar-fill--audio" :style="{ width: `${debugAudioProgress}%` }"></div>
+          </div>
+          <div class="debug__labels">
+            <span>disc {{ formatDebugTime(debugDiscSeconds) }}</span>
+            <span>audio {{ formatDebugTime(debugAudioSeconds) }}</span>
+            <span>speed {{ currentSpeed.toFixed(2) }}</span>
+          </div>
         </div>
-        <div class="debug__labels">
-          <span>disc {{ formatDebugTime(debugDiscSeconds) }}</span>
-          <span>audio {{ formatDebugTime(debugAudioSeconds) }}</span>
-          <span>speed {{ currentSpeed.toFixed(2) }}</span>
-        </div>
-      </div>
+      </slot>
     </div>
     <div class="disc" ref="discRef" id="disc">
       <div class="bobine" :style="{
@@ -33,8 +35,10 @@
       }"></div>
       <button class="power-button" :class="{ isPowerActive }" @click="Power" @touchstart.passive="isPowerActive = true"
         @touchend="isPowerActive = false" @touchcancel="isPowerActive = false" :disabled="isLoadingTrack">
-        <img class="macaron" src="/favicon.svg" v-if="!isEndOfTrack">
-        <img class="macaron" src="/rewind.svg" v-if="isEndOfTrack" />
+        <slot name="disc-center" :isEndOfTrack="isEndOfTrack" :isLoading="isLoadingTrack">
+          <img class="macaron" :src="resolvedCenterIcon" v-if="!isEndOfTrack && !isLoadingTrack">
+          <img class="macaron" :src="resolvedEndIcon" v-if="isEndOfTrack">
+        </slot>
       </button>
       <div class="turn-point" v-if="!isLoadingTrack">
       </div>
@@ -43,24 +47,96 @@
 </template>
 
 <script setup lang="ts">
-import type { Card } from '@/types/types'
+import type { CardData, PlatineAnimationConfig, PlatinePhysicsConfig, PlatineProgressConfig } from '@/types/types'
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import Disc from '@/utils/platine/disc'
 import Sampler from '@/utils/platine/sampler'
 import { useScreenWakeLock } from '@/composables/useScreenWakeLock'
 
+// Import SVG assets for library distribution
+import FaviconSvg from '@/assets/favicon.svg?url'
+import RewindSvg from '@/assets/rewind.svg?url'
+
 const props = withDefaults(defineProps<{
-  card?: Card;
+  /** Card data */
+  card?: CardData;
   /** Indique si cette platine est la carte actuellement ouverte/visible */
   active?: boolean;
   delegateReplayOnEnd?: boolean;
+  /** Custom center icon for the disc */
+  centerIcon?: string;
+  /** Custom end-of-track icon */
+  endIcon?: string;
+  /** Progress range configuration */
+  progressConfig?: PlatineProgressConfig;
+  /** Animation duration configuration */
+  animationConfig?: PlatineAnimationConfig;
+  /** Physics configuration for scratch/inertia */
+  physicsConfig?: PlatinePhysicsConfig;
+  /** Seek interval in seconds for keyboard navigation */
+  seekInterval?: number;
+  /** Custom icons for disc center */
+  icons?: {
+    center?: string;
+    end?: string;
+  };
 }>(), {
   card: undefined,
   active: true,
   delegateReplayOnEnd: false,
+  centerIcon: undefined,
+  endIcon: undefined,
+  progressConfig: () => ({ minPercentage: 17, maxPercentage: 100 }),
+  animationConfig: () => ({
+    accelerationDuration: 1500,
+    decelerationDuration: 1500,
+    rewindSlowDownDuration: 300,
+    rewindScratchDuration: 200,
+    seekScratchDuration: 300,
+    seekInterval: 4
+  }),
+  physicsConfig: () => ({
+    inertiaFriction: 0.9,
+    inertiaAmplification: 12,
+    maxScratchSpeed: 3.5
+  }),
+  seekInterval: 4
 })
 
 const emit = defineEmits(['loaded', 'finishPlaying', 'play-state-changed', 'replay-requested'])
+
+// Merge defaults with provided config
+const progressConfig = computed(() => ({
+  ...props.progressConfig,
+  minPercentage: 17,
+  maxPercentage: 100
+}))
+
+const animationConfig = computed(() => ({
+  ...props.animationConfig,
+  accelerationDuration: 1500,
+  decelerationDuration: 1500,
+  rewindSlowDownDuration: 300,
+  rewindScratchDuration: 200,
+  seekScratchDuration: 300,
+  seekInterval: 4
+}))
+
+const physicsConfig = computed(() => ({
+  ...props.physicsConfig,
+  inertiaFriction: 0.9,
+  inertiaAmplification: 12,
+  maxScratchSpeed: 3.5
+}))
+
+// Resolved icons (props > icons object > defaults)
+const resolvedCenterIcon = computed(() => {
+  return props.icons?.center || props.centerIcon || FaviconSvg
+})
+
+const resolvedEndIcon = computed(() => {
+  return props.icons?.end || props.endIcon || RewindSvg
+})
 
 // State
 const isLoadingTrack = ref(false)
@@ -152,8 +228,8 @@ const updateTurns = () => {
   const newTurns = disc.value.secondsPlayed * 0.75
   const newTotalTurns = (disc.value as any)._duration * 0.75
 
-  const minPercentage = 17
-  const maxPercentage = 100
+  const minPercentage = progressConfig.value.minPercentage
+  const maxPercentage = progressConfig.value.maxPercentage
   const progressRatio = disc.value.secondsPlayed / (disc.value as any)._duration
   const newProgressPercentage = minPercentage + (progressRatio * (maxPercentage - minPercentage))
 
@@ -172,19 +248,22 @@ const updateTurns = () => {
   }
 }
 
-const loadAudio = async (card: Card) => {
+const loadAudio = async (card: CardData) => {
   if (!sampler.value || !card) return
+
+  const audioUrl = (card as any).audioUrl || (card as any).url_audio
+  if (!audioUrl) return
 
   isLoadingTrack.value = true
   try {
-    await sampler.value.loadTrack(card.url_audio)
+    await sampler.value.loadTrack(audioUrl)
     if (disc.value) {
       disc.value.setDuration(sampler.value.duration)
       disc.value.setAngle(0)
       isEndOfTrack.value = false
       currentTurns.value = 0
       totalTurns.value = sampler.value.duration * 0.75
-      progressPercentage.value = 17
+      progressPercentage.value = progressConfig.value.minPercentage
       updateTurns()
     }
   } finally {
@@ -206,7 +285,7 @@ const play = async (position = 0, withAcceleration = true) => {
     disc.value.setAngle(0)
     isEndOfTrack.value = false
     currentTurns.value = 0
-    progressPercentage.value = 17
+    progressPercentage.value = progressConfig.value.minPercentage
   }
 
   sampler.value.play(position, withAcceleration)
@@ -371,7 +450,7 @@ const Rewind = async () => {
   isScratchEffectActive = true
   const generation = ++scratchGeneration
 
-  const slowDownDuration = 300
+  const slowDownDuration = animationConfig.value.rewindSlowDownDuration
   const startTime = performance.now()
   const startSpeed = Math.abs(currentSpeed) || 1
 
@@ -395,7 +474,7 @@ const Rewind = async () => {
     sampler.value?.play(0, false)
     disc.value?.setAngle(0)
 
-    const scratchDuration = 200
+    const scratchDuration = animationConfig.value.rewindScratchDuration
     const scratchStart = performance.now()
 
     const scratch = (timestamp: number) => {
@@ -429,18 +508,21 @@ const Rewind = async () => {
   requestAnimationFrame(slowDown)
 }
 
-const NextFourSec = () => {
+const seek = async (direction: 'forward' | 'backward') => {
   if (!disc.value || !sampler.value) return
 
   const currentPosition = disc.value.secondsPlayed || 0
-  const newPosition = Math.min(currentPosition + 4, (disc.value as any)._duration)
+  const seekInterval = animationConfig.value.seekInterval
+  const newPosition = direction === 'forward'
+    ? Math.min(currentPosition + seekInterval, (disc.value as any)._duration)
+    : Math.max(currentPosition - seekInterval, 0)
   const wasPlaying = isPlaying.value
 
   isScratchEffectActive = true
   const generation = ++scratchGeneration
 
   const scratchEffect = () => {
-    const scratchDuration = 300
+    const scratchDuration = animationConfig.value.seekScratchDuration
     const scratchStart = performance.now()
     const startAngle = currentPosition * 0.75 * Math.PI * 2
     const targetAngle = newPosition * 0.75 * Math.PI * 2
@@ -451,11 +533,15 @@ const NextFourSec = () => {
 
       if (progress < 0.5) {
         const scratchProgress = progress * 2
-        const scratchSpeed = 1 + (scratchProgress * 2)
+        const scratchSpeed = direction === 'forward'
+          ? 1 + (scratchProgress * 2)
+          : 1 - (scratchProgress * 2)
         sampler.value?.setPlaybackRate(scratchSpeed)
       } else {
         const pullProgress = (progress - 0.5) * 2
-        const pullSpeed = 3 - (pullProgress * 2)
+        const pullSpeed = direction === 'forward'
+          ? 3 - (pullProgress * 2)
+          : -1 + (pullProgress * 2)
         sampler.value?.setPlaybackRate(pullSpeed)
       }
 
@@ -481,57 +567,8 @@ const NextFourSec = () => {
   scratchEffect()
 }
 
-const PrevFourSec = () => {
-  if (!disc.value || !sampler.value) return
-
-  const currentPosition = disc.value.secondsPlayed || 0
-  const newPosition = Math.max(currentPosition - 4, 0)
-  const wasPlaying = isPlaying.value
-
-  isScratchEffectActive = true
-  const generation = ++scratchGeneration
-
-  const scratchEffect = () => {
-    const scratchDuration = 300
-    const scratchStart = performance.now()
-    const startAngle = currentPosition * 0.75 * Math.PI * 2
-    const targetAngle = newPosition * 0.75 * Math.PI * 2
-
-    const scratch = (timestamp: number) => {
-      const elapsed = timestamp - scratchStart
-      const progress = Math.min(elapsed / scratchDuration, 1)
-
-      if (progress < 0.5) {
-        const scratchProgress = progress * 2
-        const scratchSpeed = 1 - (scratchProgress * 2)
-        sampler.value?.setPlaybackRate(scratchSpeed)
-      } else {
-        const pullProgress = (progress - 0.5) * 2
-        const pullSpeed = -1 + (pullProgress * 2)
-        sampler.value?.setPlaybackRate(pullSpeed)
-      }
-
-      const currentAngle = startAngle + ((targetAngle - startAngle) * progress)
-      disc.value?.setAngle(currentAngle)
-
-      if (progress < 1) {
-        requestAnimationFrame(scratch)
-      } else {
-        if (wasPlaying) {
-          sampler.value?.play(newPosition, false)
-        }
-        disc.value?.setAngle(targetAngle)
-        if (generation === scratchGeneration) {
-          isScratchEffectActive = false
-        }
-      }
-    }
-
-    requestAnimationFrame(scratch)
-  }
-
-  scratchEffect()
-}
+const NextFourSec = () => seek('forward')
+const PrevFourSec = () => seek('backward')
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!props.active) return
