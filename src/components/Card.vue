@@ -319,6 +319,14 @@ $card-transition-speed: 1.2s;
 $card-mount-speed: 0.2s;
 
 .card {
+  width: 40vmin;
+  aspect-ratio: 7/10;
+  position: relative;
+  rotate: var(--card-rotation, 0deg);
+  max-height: 100vmin;
+  max-width: 100vmin;
+  transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
+
   &:focus-within {
     z-index: 50;
   }
@@ -355,13 +363,6 @@ $card-mount-speed: 0.2s;
     }
   }
 
-  aspect-ratio: 7/10;
-  position: relative;
-  rotate: var(--card-rotation, 0deg);
-  max-height: 100vmin;
-  max-width: 100vmin;
-  transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);
-
   .card-element,
   .platine {
     height: 100%;
@@ -389,6 +390,7 @@ $card-mount-speed: 0.2s;
   }
 
   &.open {
+    width: 80vmin;
     aspect-ratio: 10/10;
     rotate: 0deg;
     transition: all $card-transition-speed cubic-bezier(0.4, 0, 0.2, 1);

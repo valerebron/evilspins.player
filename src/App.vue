@@ -1,6 +1,6 @@
 <template>
   <div class="screen-centered p-4">
-    <Card :card="card" class="w-[40vmin]" click-behavior="self-play" />
+    <Card :card="card" click-behavior="self-play" />
   </div>
 </template>
 
