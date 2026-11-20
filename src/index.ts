@@ -21,8 +21,7 @@ export { default as SpadeSVG } from './components/svg/SpadeSVG.vue'
 // Types
 export type {
   CardData,
-  Suit,
-  Rank as RankType,
+  CardUnicode,
   CardSize,
   CardTransitionConfig,
   PlatineProgressConfig,

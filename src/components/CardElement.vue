@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CardData, Suit, Rank as RankType, YearColorMap } from '@/types/types'
+import type { CardData, YearColorMap } from '@/types/types'
 import { computed } from 'vue'
 import { getYearColor, defaultYearColorMap } from '@/utils/colors'
 import Rank from './Rank.vue'
@@ -97,7 +97,7 @@ const props = withDefaults(defineProps<{
   backColorResolver?: (year: number | undefined) => string;
   /** Custom year-to-color map */
   yearColorMap?: YearColorMap;
-  /** Show rank indicator (suit + rank) */
+  /** Show unicode card indicator */
   showRank?: boolean;
   /** Image loading strategy */
   imageLoading?: 'lazy' | 'eager' | 'inline';
@@ -126,8 +126,7 @@ const card = computed<CardData>(() => {
     artist: c.artist,
     year: c.year,
     startTime: c.startTime || c.start,
-    suit: c.suit,
-    rank: c.rank,
+    unicode: c.unicode,
     ...c // Pass through any additional properties
   }
 })

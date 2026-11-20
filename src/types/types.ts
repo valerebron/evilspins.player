@@ -25,11 +25,8 @@ export interface CardData {
   /** Optional: Start time in seconds for playback */
   startTime?: number
 
-  /** Optional: Card suit for visual decoration */
-  suit?: Suit
-
-  /** Optional: Card rank for visual decoration */
-  rank?: Rank
+  /** Optional: Unicode playing card character (from U+1F0A0–U+1F0FF) */
+  unicode?: CardUnicode
 
   /** Allow arbitrary additional properties for extensibility */
   [key: string]: unknown
@@ -52,15 +49,13 @@ export interface Card {
   esid: string
   slug: string
   createdAt: Date
-  suit?: Suit
-  rank?: Rank
+  unicode: CardUnicode
   start?: number
   box_position?: number
   box_side?: string | null
 }
 
-export type Suit = '♠' | '♣' | '♦' | '♥'
-export type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'V' | 'D' | 'R'
+export type CardUnicode = '🂠' | '🂡' | '🂢' | '🂣' | '🂤' | '🂥' | '🂦' | '🂧' | '🂨' | '🂩' | '🂪' | '🂫' | '🂬' | '🂭' | '🂮' | '🂱' | '🂲' | '🂳' | '🂴' | '🂵' | '🂶' | '🂷' | '🂸' | '🂹' | '🂺' | '🂻' | '🂼' | '🂽' | '🂾' | '®' | '🃁' | '🃂' | '🃃' | '🃄' | '🃅' | '🃆' | '🃇' | '🃈' | '🃉' | '🃊' | '🃋' | '🃌' | '🃍' | '🃎' | '🃏' | '🃑' | '🃒' | '🃓' | '🃔' | '🃕' | '🃖' | '🃗' | '🃘' | '🃙' | '🃚' | '🃛' | '🃜' | '🃝' | '🃞' | '🃟' | '🃠' | '🃡' | '🃢' | '🃣' | '🃤' | '🃥' | '🃦' | '🃧' | '🃨' | '🃩' | '🃪' | '🃫' | '🃬' | '🃭' | '🃮' | '🃯' | '🃰' | '🃱' | '🃲' | '🃳' | '🃴' | '🃵'
 
 /** Configuration types for component customization */
 
