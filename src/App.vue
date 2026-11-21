@@ -1,12 +1,12 @@
 <template>
   <div class="screen-centered p-4">
-    <CardComponent :card="card" />
+    <Card :card />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import CardComponent from './components/Card.vue'
+import Card from './components/Card.vue'
 import type { CardData } from '@/types/types'
 
 const card = ref<CardData>({
