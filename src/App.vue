@@ -11,7 +11,7 @@ import type { CardData } from '@/types/types'
 
 const card = ref<CardData>({
   audioUrl: 'https://pnb-website-bucket.s3.us-east-2.amazonaws.com/samples/audio/flac/sample-audio-30s.flac',
-  imageUrl: 'https://i.ebayimg.com/images/g/LawAAOSwtutcWxl1/s-l1200.jpg',
+  imageUrl: 'https://placehold.net/default.png',
   blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
   year: 2022,
   artist: 'artist',
