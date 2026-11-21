@@ -32,9 +32,9 @@ const props = withDefaults(defineProps<{
   isPlaying?: boolean;
   /** Available buttons */
   buttons?: string[];
-  /** Click behavior: 'flip-only' | 'self-play' | 'external-player' */
-  clickBehavior?: 'flip-only' | 'self-play' | 'external-player';
-  /** Auto-play when mounted (self-play mode only) */
+  /** Click behavior: 'flip' | 'play' | 'external-player' */
+  mode?: 'flip' | 'play' | 'external-player';
+  /** Auto-play when mounted (play mode only) */
   autoplay?: boolean;
   /** Disabled state */
   disabled?: boolean;
@@ -58,7 +58,7 @@ const props = withDefaults(defineProps<{
   };
 }>(), {
   buttons: () => ['play'],
-  clickBehavior: 'flip-only',
+  mode: 'play',
   transitionDuration: 1050,
   playPauseKey: 'Space',
   closeKey: 'Escape',
@@ -123,7 +123,7 @@ const { requestWakeLock, releaseWakeLock } = useScreenWakeLock()
 
 const CARD_TRANSITION_DURATION = computed(() => props.transitionDuration)
 
-const clickBehavior = computed(() => props.clickBehavior ?? 'flip-only')
+const mode = computed(() => props.mode ?? 'flip')
 
 // Computed styles for dynamic sizing
 const cardStyle = computed(() => {
@@ -142,7 +142,7 @@ const cardStyle = computed(() => {
 
   return base
 })
-const isSelfPlayMode = computed(() => clickBehavior.value === 'self-play')
+const isSelfPlayMode = computed(() => mode.value === 'play')
 const isDisabled = computed(() => Boolean(props.disabled))
 
 const revealCardIfNeeded = () => {
@@ -167,7 +167,7 @@ const clickOnCard = async () => {
     return
   }
 
-  if (clickBehavior.value === 'external-player') {
+  if (mode.value === 'external-player') {
     revealCardIfNeeded()
     emit('play-request', props.card)
     return
@@ -427,10 +427,6 @@ $card-mount-speed: 0.2s;
 
   :deep(.card-element) {
     position: absolute;
-
-    .card-body {
-      display: none;
-    }
 
     .face-up,
     .cover {

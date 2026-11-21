@@ -1,6 +1,6 @@
 <template>
   <div class="screen-centered p-4">
-    <CardComponent :card="card" click-behavior="self-play" />
+    <CardComponent :card="card" />
   </div>
 </template>
 

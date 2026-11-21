@@ -7,7 +7,7 @@
     <div class="flip-inner" ref="cardElement">
       <!-- Face-Up -->
       <main
-        class="face-up z-10 p-[6%] hover:shadow-xl hover:scale-110 transition-all shadow-lg flex flex-col overflow-hidden border-2">
+        class="face-up z-10 hover:shadow-xl hover:scale-110 transition-all shadow-lg flex flex-col overflow-hidden border-2">
 
         <slot name="rank">
           <Rank :card="card" v-if="showRank" />
@@ -25,24 +25,11 @@
               draggable="false" />
           </slot>
         </figure>
-
-        <!-- Body -->
-        <slot name="card-body" :card="card">
-          <div
-            class="card-body p-[6%] text-center bg-white rounded-b-xl opacity-0 -mt-16 hover:opacity-100 hover:-mt-0 transition-all duration-300">
-            <h2 class="select-text text-sm text-neutral-500 first-letter:uppercase truncate">
-              {{ card.title || '' }}
-            </h2>
-            <p class="select-text text-base text-neutral-800 font-bold capitalize truncate">
-              {{ card.artist || '' }}
-            </p>
-          </div>
-        </slot>
       </main>
 
       <!-- Face-Down -->
       <footer
-        class="face-down z-10 p-[6%] bg-opacity-10 bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden select-none">
+        class="face-down z-10 bg-opacity-10 bg-white shadow-lg flex flex-col overflow-hidden select-none">
         <figure class="cover">
           <slot name="face-down" :isLoading="isLoading" :isPlaying="isPlaying" :backColor="resolvedBackColor" :backImage="resolvedBackImage">
             <PlayButton :is-loading="isLoading" :is-playing="isPlaying" />
@@ -193,16 +180,18 @@ defineExpose({
     backface-visibility: hidden;
     will-change: transform;
     background-color: white;
-
+    padding: 2.4vmin;
+    .open &  {
+      padding: 4vmin;
+    }
+    border-radius: 4vmin;
     .cover {
+      border-radius: 2vmin;
       @apply flex-1 flex justify-center items-center overflow-hidden cursor-pointer;
-
-      border-radius: 0.75rem;
     }
   }
 
   .face-up {
-    border-radius: 1rem;
     border: none;
     transform: rotateY(0deg);
     transition: box-shadow 0.6s;
